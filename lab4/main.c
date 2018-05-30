@@ -6,7 +6,8 @@
 float getAverage(float avg, float current);
 
 struct reading{
-	float min,max,current,avg;
+	float min,max,current,avg,sum;
+	int count;
 };
 
 int is_pressed(int r, int c)
@@ -138,13 +139,11 @@ void updateReading(struct reading * rd)
 	{
 		rd->min = current;
 	}
-	rd->avg = getAverage(rd->avg,current);
+	rd->count += 1;
+	rd->sum+=current;
+	rd->avg = rd->sum/rd->count;
 }
-float getAverage(float avg, float current)
-{
-	//Get the previous value, add in the new inst voltage, and divide by 2
-	return (avg+=current)/2.0;
-}
+
 void displayLCD(struct reading * rd)
 {
 	char buf[17];
@@ -167,19 +166,21 @@ void displayLCD(struct reading * rd)
 }
 void initializeReading(struct reading * rd)
 {
-	rd->min = 10;//makes sure it goes down to some initial min value
+	rd->min = 5;//makes sure it goes down to some initial min value
 	rd->max = 0;
 	rd->current = 0;
 	rd->avg = 0;
+	rd->count = 0;
+	rd->sum = 0;
 }
 int main(void)
 {
 	//disabling jtag
 	MCUCSR = (1<<JTD);
 	MCUCSR = (1<<JTD);
+	
 	char buf[17];
 	ini_lcd();
-	ini_avr();
 	int key;
 	//setting Port A as an input
 	CLR_BIT(DDRA,0);
@@ -188,49 +189,31 @@ int main(void)
 	initializeReading(&rd);
 	int sample = 0;
 	int initial = 0;
-	pos_lcd(0,0);
-	sprintf(buf,"be4 loop");
-	puts_lcd2(buf);
-	wait_avr(1000);
-	for(;;)
+
+	while(1)
 	{
-		pos_lcd(0,0);
-		sprintf(buf,"in loop");
-		puts_lcd2(buf);
-	}
-	//while(1)
-	//{
-		//key = translateKey(get_key());
-		//reset
-		//if(key == 1)
-		//{
-			//initializeReading(&rd);
-			//pos_lcd(0,0);
-			//sprintf(buf,"Rdy to sample");
-			//puts_lcd2(buf);
-			//sample = 0;
-		//}
-		//initiate sampling
-		//if (key==2)
-		//{
-			//sample = 1;
-		//}
-		//else if (1==sample)
-		//{
-			//updateReading(&rd);
-			//displayLCD(&rd);
+		key = translateKey(get_key());
+		if(key == 1)
+		{
+			initializeReading(&rd);
+			clr_lcd();
 			pos_lcd(0,0);
-			sprintf(buf,"in loop");
+			sprintf(buf,"Ready to sample");
 			puts_lcd2(buf);
-			//wait_avr(500);//sample every 500ms
-		//}
-		//else
-		//{
-			//pos_lcd(0,0);
-			//sprintf(buf,"%02i",key);
-			//puts_lcd2(buf);
-		//}
-	//}//end while
+			sample = 0;
+		}
+		//initiate sampling
+		if (key==2)
+		{
+			sample = 1;
+		}
+		else if (1==sample)
+		{
+			updateReading(&rd);
+			displayLCD(&rd);
+			wait_avr(500);//sample every 500ms
+		}
+	}//end while
 }//end main
 
 
